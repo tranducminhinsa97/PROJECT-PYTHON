@@ -16,7 +16,7 @@ import random as rnd
 import math as m
 
 
-CHANCE_TO_MUTATE = 0.002
+CHANCE_TO_MUTATE = 0.0002
 # Gears module
 GEARS_MODULE = 0.1
 # Possible positions /!\ We're working with natural integers only bits : 11-11-4
@@ -68,12 +68,13 @@ class Gear(Object):
     def __init__(self):
         Object.__init__(self)
         self.nb_teeth = rnd.randint(MIN_NB_TEETH, MAX_NB_TEETH)
-        self.vitesse = 0
+        self.rotates = False
+        self.speed = 0  # In spin by minutes
 
 
 class EscapeWheel(Gear):
     """
-    The escape wheel basically has same parameters as a gear
+    The escape wheel basically has the same parameters than a gear
     """
     # Creation
     def __init__(self):
@@ -114,7 +115,7 @@ class Hand(Object):
     # Creation
     def __init__(self):
         Object.__init__(self)
-        self.vitesse = 0
+        self.speed = 0  # In spin by minutes
 
 
 class Fork(Object):
@@ -261,6 +262,7 @@ def generate(nb_monsters, min_obj, max_obj):
 
 
 def mate(watch1, watch2, number):
+    # returns the baby of watch1 and watch2 as another watch. Ask for a number for the first element of the watch
     code = [watch_to_bin(watch1), watch_to_bin(watch2), '']
     segments = []
     for i in range(2):
@@ -276,6 +278,7 @@ def mate(watch1, watch2, number):
         index = rnd.randint(0, len(segments)-1)
         code[2] += segments[index]
         del segments[index]
+    code[2] = mutate(code[2])
     return bin_to_watch(code[2], number)
 
 
@@ -283,7 +286,7 @@ def mutate(code):
     code = list(code)
     for i in range(len(code)):
         if rnd.random()+CHANCE_TO_MUTATE >= 1:
-            print('mutation')
+            #print('mutation')
             code[i] = str((int(code[i]) + rnd.randint(1, 2)) % 3)
     return ''.join(code)
 
@@ -306,9 +309,14 @@ def distance_between_objs(obj1: Object, obj2: Object):
 
 
 def list_connections(watch: list):
+    """
+    Returns a trinome for every connection in the passed watch using this convention :
+    [object_1, object_2, type_of_connection] returns False if the watch doesn't contain any axis
+    type of connection can be XY_CONNECTION or Z_CONNECTION
+    """
     connections = []
     if not owns_axis(watch):
-        return False
+        return []
     for i in range(1, len(watch)):
         for j in range(i+1, len(watch)):
             connection = connect(watch[i], watch[j])
@@ -318,14 +326,17 @@ def list_connections(watch: list):
 
 
 def connect(obj1: Object, obj2: Object):
+    if obj1.__class__.__name__ == "Axis" or obj2.__class__.__name__ == "Axis" and \
+            distance_between_objs(obj1, obj2) < PIN_DISTANCE:
+        obj1.y_position = obj2.y_position
+        obj2.x_position = obj1.x_position
+        return [obj1, obj2, Z_CONNECTION]
     if obj1.z_position == obj2.z_position and distance_between_objs(obj1, obj2) < CONNECTION_DISTANCE:
         return [obj1, obj2, XY_CONNECTION]
     elif distance_between_objs(obj1, obj2) < PIN_DISTANCE:
+        obj1.y_position = obj2.y_position
+        obj2.x_position = obj1.x_position
         return [obj1, obj2, Z_CONNECTION]
     else:
         return [obj1, obj2, NO_CONNECTION]
 
-
-for i in range (1,100):
-    my_watch = generate(1, 20, 50)[0]
-    print(list_connections(watch_to_bin(my_watch)))
